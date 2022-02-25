@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:request-config name="HTTP_Request_configuration" doc:name="HTTP Request configuration" doc:id="77cf0e56-667d-440b-8f5e-a5e427059c7d" >
+		<http:request-connection host="${req.host}" port="${req.portRequest}" />
+	</http:request-config>
+	<http:request-config name="HTTP_Request_Xapi" doc:name="HTTP Request configuration" doc:id="2960a279-5108-4b79-86c9-1fda1ac87b07" >
+		<http:request-connection host="${req.host}" port="${req.portRequest}" />
+	</http:request-config>
+	<validation:config name="Validation_Config" doc:name="Validation Config" doc:id="1db6591e-62cc-41b4-9043-712a8d0380e4" />
+	<flow name="delete:\persons\(id):personas-xapi-config" doc:id="eb967672-ab3d-41a4-ac2f-dcf0e6fa5e82" >
+		<http:request method="DELETE" doc:name="Request-Xapi-Delete" doc:id="2f656f5f-0ddd-42bd-a73f-7d44683a5a19" config-ref="HTTP_Request_Xapi" path="/api/persons/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : attributes.uriParams.id
+}]]]></http:uri-params>
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"Order" : attributes.queryParams.Order
+}]]]></http:query-params>
+		</http:request>
+	</flow>
+	<flow name="get:\persons:personas-xapi-config" doc:id="e41b0351-a18b-46f2-8d39-158c81a77fe4" >
+		<http:request method="GET" doc:name="request-xapi-AllPersons" doc:id="a5a6babc-ea3d-403c-88af-d96660bf50fa" path="/api/persons" config-ref="HTTP_Request_Xapi">
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"Order" : attributes.queryParams.Order
+}]]]></http:query-params>
+		</http:request>
+	</flow>
+	<flow name="get:\persons\ages:personas-xapi-config" doc:id="55b07bb1-c46e-4fcb-a6dc-0bd7d9bb5847" >
+		<set-variable value="#[attributes.queryParams.MinAge]" doc:name="MinAge" doc:id="16cb0780-8e39-44a4-97ca-fe31a8a3df4d" variableName="MinAge"/>
+		<set-variable value="#[attributes.queryParams.MaxAge]" doc:name="MaxAge" doc:id="7ce8d421-d45f-4513-95d8-8b2b8a3fbb3e" variableName="MaxAge"/>
+		<set-variable value='#[if(vars.MinAge  &lt; vars.MaxAge and &#10;	(vars.MinAge   &gt;1 and 	vars.MinAge   &lt; 99)and&#10;	(vars.MaxAge &gt;1 and 	vars.MaxAge   &lt; 99)) &#10;	"True"&#10;else "False"]' doc:name="Validate" doc:id="8120154d-9f51-410a-bff7-5e7a75fe33b0" variableName="Validate"/>
+		<choice doc:name="Choice" doc:id="3b4b19af-db9b-4490-b309-6511a848d180" >
+			<when expression='#[vars.Validate=="True"]'>
+				<http:request method="GET" doc:name="Request-Xapi-Persons_By_Range_Ages" doc:id="b25264a2-43c9-45b0-ae11-6d184ee6b426" config-ref="HTTP_Request_Xapi" path="/api/persons/ages">
+					<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"MinAge" : attributes.queryParams.MinAge,
+	"MaxAge" :  attributes.queryParams.MaxAge,
+	"Order" : attributes.queryParams.Order
+}]]]></http:query-params>
+		</http:request>
+			</when>
+			<otherwise >
+				<flow-ref doc:name="ValidatorAgeMessages" doc:id="ddbc5e6e-c056-4914-80b9-3336ebde29a3" name="ValidatorAgeMessage"/>
+			</otherwise>
+		</choice>
+	</flow>
+	<sub-flow name="ValidatorAgeMessage" doc:id="f1244568-8aad-49d0-93cd-bb25fb583024" >
+		<choice doc:name="Choice" doc:id="5b609f5e-abca-4b4c-a704-b9951459d26d">
+			<when expression="#[vars.MinAge&gt; varss.MaxAge]">
+				<ee:transform doc:name="ErrorMaxMinAgeComprison" doc:id="320559a9-0b5d-43eb-9df0-74db9223e540" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"MaxAge has to be greater than MinAge"
+}
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<when expression="#[vars.MinAge&lt;1 or vars.MinAge&gt;99]">
+				<ee:transform doc:name="Transform Message" doc:id="28e3c0df-ca0b-4db6-935c-fd778a1db648" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"MinAge has to be in range of [1 to 99]"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="c61fadd4-8979-4c48-8079-e2f3ff302f57">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"MaxAge has to be in range of [1 to 99]"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="get:\persons\(id):personas-xapi-config" doc:id="64c03b65-5ed4-4036-bc3c-2a26179d98c8" >
+		<http:request method="GET" doc:name="Request-Xapi-getPersonById" doc:id="077de083-e48d-486e-b530-3d106ce9e349" config-ref="HTTP_Request_Xapi" path="/api/persons/{id}">
+			<http:uri-params><![CDATA[#[output application/java
+---
+{
+	"id" : attributes.uriParams.id
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="post:\persons:application\json:personas-xapi-config" doc:id="b1e494df-b629-4b4b-8f12-cf5d8a633f5b" >
+		<validation:is-time doc:name="Is time" doc:id="2b951ef9-77ec-48aa-a2d0-826ad00091d1" config-ref="Validation_Config" time="#[payload.date_of_birth]" pattern="yyyy/MM/dd " message="error de fecha"/>
+		<http:request method="POST" doc:name="Request-Xapi-Post" doc:id="fa5b0369-f50c-43a9-adde-9a6d077e9098" config-ref="HTTP_Request_Xapi" path="/api/persons">
+		</http:request>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="e4df2746-01b7-459c-a280-f49bcd2fd9b8" type="VALIDATION:INVALID_TIME">
+				<ee:transform doc:name="ErrorMessage" doc:id="a3f8240c-a8c1-4410-adb6-3205398fb725" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	"message":"The date_of_birth formate is incorrect required format(aaaa/mm/dd)"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

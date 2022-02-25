@@ -1,0 +1,105 @@
+#%RAML 1.0
+title: expieriensePersonas
+mediaType: [application/json]
+types:
+  Person: !include  Datatypes/personDataType.raml
+/persons:
+    get:
+      description: Return all persons
+      queryParameters:
+        Order:
+          description: Asc means Ascending or Des means Descending both by name
+          type: string
+          required: true
+          enum:
+            - Asc
+            - Desc
+      responses:
+        400:
+          body:
+                  application/json: 
+                    example: {"message":"Problem with the request"}  
+        200:
+          body:
+                  application/json:
+                    type: Person[]
+                    example: !include Examples/examplePersons.json
+        500:
+                body:
+                  application/json: 
+                    example: {"message":"Internal Server Error"}      
+    post:
+        body:
+          application/json:
+            type: Person
+            example: !include Examples/exampleCreatePerson.json
+        responses:
+          201:
+            body:
+              application/json:
+                type: Person
+                example:    !include Examples/exampleCreatePerson.json  
+          500:
+            body:
+              application/json:
+                example: {"message":"Internal Server Error"}
+    /{id}:
+      description: Return one person information by id
+      uriParameters:
+        id:
+          type: integer
+      get:
+        responses: 
+          200:
+            body: 
+              application/json:
+                type: Person
+                example:   !include  Examples/exampleonePerson.json
+          500:
+            body:
+              application/json:
+                example: {"message":"Internal Server Error"}
+      delete:
+        description: Delete one person
+        responses: 
+          200:
+            body: 
+              application/json:
+                example: {"message":"Deleted person with id=1"}
+          500:
+            body:
+              application/json:
+                example: {"message":"Internal Server Error"} 
+
+/persons/ages:
+  get:
+      description: Return persons in range age,MinAge and MaxAge means the ages range(example min 14 max 34 Desc return dates between 1988 and 2008)the age must be between 18 and 90 
+      queryParameters:
+        MinAge:
+          type: integer
+          required: true
+        MaxAge:
+          type: integer
+          required: true
+        Order:
+          description: Asc means Ascending or Des means Descending both by name 
+          type: string
+          required: true
+          enum:
+            - Asc
+            - Desc
+      responses:
+        201:
+          body:
+                  application/json:
+                    type: Person[]
+                    example: !include Examples/examplePersons.json
+        400:
+          body:
+                  application/json: 
+                    example: {"message":"Problem with the request"}  
+        500:
+                body:
+                  application/json: 
+                    example: {"message":"Internal Server Error"}   
+  

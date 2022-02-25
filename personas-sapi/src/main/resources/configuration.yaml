@@ -1,0 +1,11 @@
+req:
+  port: "8085"
+  host: "localhost"
+db:
+  sqlserver:
+    host: "localhost"
+    port: "1434"
+    user: "jeffadmin"
+    paswd: "123456"
+    dbName: "basePersona"
+  

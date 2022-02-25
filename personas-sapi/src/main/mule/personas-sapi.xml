@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="3d81f815-2adc-49ac-b13a-d56b32cb04e3" >
+		<db:mssql-connection host="${db.sqlserver.host}" port="${db.sqlserver.port}" user="${db.sqlserver.user}" password="${db.sqlserver.paswd}" databaseName="${db.sqlserver.dbName}"/>
+	</db:config>
+	<flow name="delete:\persons\(id):personas-sapi-config" doc:id="cda49706-97f7-4823-948e-5a9ca02673fd" >
+		<set-variable value="#[attributes.uriParams.id]" doc:name="Set Variable" doc:id="794b6b04-8614-4f13-a34a-63350794837c" variableName="id"/>
+		<db:delete doc:name="Delete" doc:id="8c3a182f-0de5-451c-a946-d5701bc7aa0a" config-ref="Database_Config">
+			<db:sql ><![CDATA[Delete
+from Persons
+where id=	:personId
+]]></db:sql>
+			<db:input-parameters ><![CDATA[#['personId': attributes.uriParams.id]]]></db:input-parameters>
+		</db:delete>
+		<ee:transform doc:name="ResponseDeleted" doc:id="fefb2f85-ee8f-4202-b508-8d867d0b0d0b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Deleted person with id=" ++ (vars.id as String)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="get:\persons:personas-sapi-config" doc:id="8fb4382e-df27-4248-a1d8-1accc7d39a93" >
+		<db:select doc:name="SelectAllPersons" doc:id="8003daca-66b1-45d7-89be-47d948f673e7" config-ref="Database_Config">
+			<db:sql ><![CDATA[Select first_name,last_name,date_of_birth,gender
+from Persons
+ ]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	
+}]]]></db:input-parameters>
+		</db:select>
+		<flow-ref doc:name="ChangeFormat" doc:id="6e6ba1b2-b406-4919-ab06-569240094112" name="changePersonsFormat"/>
+		<logger level="INFO" doc:name="Logger" doc:id="3ddc65b4-0f04-45be-8c68-328e4194bf4b" />
+	</flow>
+	<sub-flow name="changePersonsFormat" doc:id="7a76e225-efb1-472b-b496-c038a5e9bc10" >
+		<ee:transform doc:name="ChangePersonsFormat" doc:id="332fc2bb-bf30-4ab7-b1ce-1d5a5e335004">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	first_name: payload01.first_name,
+	last_name: payload01.last_name,
+	date_of_birth: payload01.date_of_birth,
+	gender: payload01.gender
+	
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="7e3676f6-5bc9-4fc4-b5cd-e7fae82fe863" />
+	</sub-flow>
+	<flow name="get:\persons\ages:personas-sapi-config" doc:id="2cd1fa11-2ae9-4354-a4a9-81bcc6db69b7" >
+		<db:select doc:name=" SelectAllPersonsByAgeRange" doc:id="4b43a271-c8d3-44d4-b7f1-c6d53e9f442d" config-ref="Database_Config">
+			<db:sql><![CDATA[Select first_name,last_name,date_of_birth,gender
+from Persons
+where  (DATEDIFF(m,date_of_birth, GETDATE())/12) >= :minAge and  (DATEDIFF(m,date_of_birth, GETDATE())/12) <= :maxAge
+ 
+ ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	'maxAge': attributes.queryParams.MaxAge,
+	'minAge': attributes.queryParams.MinAge
+}]]]></db:input-parameters>
+		</db:select>
+		<!--  <flow-ref doc:name="ChangeFormat2" doc:id="97c64937-dc50-4e8a-aef8-efb0bf229a8b" target=" " name="changePersonsFormat"/>-->
+		<ee:transform doc:name="ChangePersonF" doc:id="881ff014-70ae-4443-b966-2f052a7bde1a" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	first_name: payload01.first_name,
+	last_name: payload01.last_name,
+	date_of_birth: payload01.date_of_birth ,
+	gender: payload01.gender
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="On Error Propagate" doc:id="ea312352-e3ea-4b2d-8b02-4b3701640739" type="DB:CONNECTIVITY">
+				<ee:transform doc:name="ErrorConectivityM" doc:id="419367be-4c2d-4286-9c7a-467da04c03f5" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"Message":"Error in connection"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="get:\persons\(id):personas-sapi-config" doc:id="d41a90a7-b2c6-4eb5-89c0-994f642d8b95" >
+		<db:select doc:name="SelectOnePersonById" doc:id="de16fd9c-769f-46e1-b3dd-540fee5fa29a" config-ref="Database_Config">
+			<db:sql><![CDATA[Select first_name,last_name,date_of_birth,gender
+from Persons
+where id=	:personId]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+	'personId': attributes.uriParams.id
+}]]]></db:input-parameters>
+		</db:select>
+		<ee:transform doc:name="TransformPersonToJson" doc:id="010b9c93-c97f-4767-a7c2-efe32c8e96a1">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+--- 
+{
+	first_name: payload[0].first_name,
+	last_name: payload[0].last_name,
+    date_of_birth: payload[0].date_of_birth,	 
+	gender: payload[0].gender
+}
+
+ 
+ 
+ 
+
+	
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Copy_of_On Error Propagate" doc:id="2d0fdc15-d76e-4442-96c0-bd3f3d10e66b" type="DB:CONNECTIVITY" >
+				<ee:transform doc:name="Copy_of_ErrorConectivityM" doc:id="14dd3a29-ea6e-457b-a370-80a9115218e6" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"Message":"Error in connection"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="post:\persons:application\json:personas-sapi-config" doc:id="fc35775a-6b99-481e-81cc-2e465f6b27d9" >
+		<set-variable value="#[payload]" doc:name="Payaload" doc:id="a4f132fa-ae3b-4e4a-9449-0e7d5d798ed6" variableName="payload"/>
+		<db:insert doc:name="Insert" doc:id="60fdd9af-2ec8-40be-b83c-c95d2cd670a3" config-ref="Database_Config">
+			<db:sql ><![CDATA[INSERT INTO Persons (first_name, last_name, date_of_birth, gender)
+VALUES (:fname, :lname, :dbirth, :gen)
+ ]]></db:sql>
+			<db:input-parameters ><![CDATA[#[{
+	'fname': payload.first_name,
+	'lname':payload.last_name,
+	'dbirth':payload.date_of_birth,
+	'gen':payload.gender
+}]]]></db:input-parameters>
+		</db:insert>
+		<ee:transform doc:name="TransformPersonToJson" doc:id="b79cf358-ab96-479e-a705-7a59d31c0356" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	
+	first_name: vars.payload.first_name,
+	last_name: vars.payload.last_name,
+	date_of_birth: vars.payload.date_of_birth,
+	gender: vars.payload.gender
+}
+
+ ]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="0bd46487-7be3-4113-bea1-d614f0acda08" message="#[payload]" />
+		<error-handler >
+			<on-error-propagate enableNotifications="true" logException="true" doc:name="Copy_of_On Error Propagate" doc:id="580fcd9a-b299-40e0-ab3f-adec7290b745" type="DB:CONNECTIVITY" >
+				<ee:transform doc:name="Copy_of_ErrorConectivityM" doc:id="29ed0321-0d9f-4b25-bae5-b5beb75abf65">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+{
+	"Message":"Error in connection"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+</mule>

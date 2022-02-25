@@ -1,0 +1,32 @@
+[
+    {
+        "first_name": "Alejandra",
+        "last_name": "Perez",
+        "date_of_birth": "1985/02/05",
+        "gender": "femenine"
+    },
+    {
+        "first_name": "Andres",
+        "last_name": "Muentes",
+        "date_of_birth": "1988/02/05",
+        "gender": "masculine"
+    },
+    {
+        "first_name": "Juan",
+        "last_name": "Muentes",
+        "date_of_birth": "1900/02/05",
+        "gender": "masculine"
+    },
+    {
+        "first_name": "Sergio",
+        "last_name": "Ramon",
+        "date_of_birth": "1997/02/05",
+        "gender": "masculine"
+    },
+    {
+        "first_name": "Waldimir",
+        "last_name": "Muentes",
+        "date_of_birth": "1988/01/01",
+        "gender": "masculine"
+    }
+]

@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd">
+	<http:request-config name="HTTP_Request_configuration_Sapi" doc:name="HTTP Request configuration" doc:id="13f3c292-dfd2-4235-bdfb-4c3920a57b48" >
+		<http:request-connection host="${req.host}" port="${req.portRequest}" />
+	</http:request-config>
+	<flow name="delete:\persons\(id):personas-papi-config" doc:id="6168ae95-ede7-485f-b048-a7e88a1ffcdd" >
+		<set-variable value="#[attributes.uriParams.id]" doc:name="PersonId" doc:id="fc77b06b-3ba6-4225-ab8d-d77826d7e5db" variableName="Id" />
+		<http:request method="DELETE" doc:name="Request-Sapi-delete" doc:id="e8b250bd-1dc0-4d11-bcc3-e0b13e46ac8d" config-ref="HTTP_Request_configuration_Sapi" path="/api/persons/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.id
+}]]]></http:uri-params>
+		</http:request>
+	</flow>
+	<flow name="get:\persons:personas-papi-config" doc:id="9582e67f-c7a9-4a03-8f70-2678d7e3ec2b" >
+		<set-variable value="#[attributes.queryParams.Order]" doc:name="Order" doc:id="650a2188-bee4-4e37-b2bd-6160a26857e3" variableName="Order"/>
+		<http:request method="GET" doc:name="Request-Sapi-Get" doc:id="8068cea5-8357-4aa8-9456-79a9d13b5c62" config-ref="HTTP_Request_configuration_Sapi" path="/api/persons">
+			<http:query-params><![CDATA[#[output application/java
+---
+{
+	"Order" : vars.Order
+}]]]></http:query-params>
+		</http:request>
+		<flow-ref doc:name="ChangeOrder" doc:id="69ee06cd-34f4-428d-80cf-6e2489b8bfc5" name="ChangeOrder"/>
+		<flow-ref doc:name="ChangeDatePersonsShowFormat" doc:id="e45e4593-80e6-4ecf-b88c-b4a7b8b94b6f" name="changeDatePersonsShowFormat" />
+	</flow>
+	<sub-flow name="changeDatePersonsShowFormat" doc:id="d274459d-8173-410d-a9c2-00ca169b48d9" >
+		<ee:transform doc:name="ChangeDateFormat" doc:id="25456914-38d4-4665-a0f9-255e4e5a5fe1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+	payload map(object,index)->{
+		"first_name":object.first_name,
+		"last_name":object.last_name ,
+		"date_of_birth":object.date_of_birth as LocalDateTime{format: "yyyy-MM-dd'T'HH:mm:ss"} as String {format: "yyyy/MM/dd"} ,
+		"gender":object.gender
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="13042273-5733-48f4-a91a-b86c8296d0c5" message="#[payload]" />
+	</sub-flow>
+	<sub-flow name="ChangeOrder" doc:id="5b70fd39-2709-43c1-8e01-9ead050bac6a" >
+		<choice doc:name="OrderChoise" doc:id="fe8c1055-105d-4be6-a696-3767d0ed1f63" >
+			<when expression='#[vars.Order == "Asc"]' >
+				<ee:transform doc:name="OrderAscendent" doc:id="08d1be66-e77f-4d5b-925b-c69fbedb314b">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+
+ payload orderBy ($.first_name)
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+			</when>
+			<otherwise >
+				<ee:transform doc:name="OrderDescendent" doc:id="7dc4ee5d-8f50-4e52-869b-4d2eb2ba68dc" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+  (payload orderBy $.first_name)[-1 to 0]
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<flow name="get:\persons\ages:personas-papi-config" doc:id="a34e0284-f8bd-4fcf-a481-a57da9b17c5f" >
+		<set-variable value="#[attributes.queryParams.Order]" doc:name="Order" doc:id="835b218e-114e-4ce4-af15-8e94b43602d5" variableName="Order"/>
+		<set-variable value="#[attributes.queryParams.MaxAge]" doc:name="MaxAge" doc:id="5f955330-48b7-4f44-85ce-4e9747eee4c3" variableName="MaxAge"/>
+		<set-variable value="#[attributes.queryParams.MinAge]" doc:name="MinAge" doc:id="6c552046-6003-40c8-b92d-9885f4334844" variableName="MinAge"/>
+		<http:request method="GET" doc:name="Request-Sapi-Get-Persons-ByAgesRange" doc:id="cf5793ab-8054-48d2-983a-ee98fc4eef3c" config-ref="HTTP_Request_configuration_Sapi" path="/api/persons/ages" >
+			<http:query-params ><![CDATA[#[output application/java
+---
+{
+	"MinAge" : vars.MinAge,
+	"MaxAge" : vars.MaxAge
+}]]]></http:query-params>
+		</http:request>
+		<flow-ref doc:name="Flow Reference" doc:id="ff250a56-3b50-4d80-b32f-8710f2ff3d84" name="ChangeOrder"/>
+		<flow-ref doc:name="ChangeDatePersonsShowFormat" doc:id="d85fdb48-4de8-4196-bead-0a8b198ca993" name="changeDatePersonsShowFormat"/>
+	</flow>
+	<flow name="get:\persons\(id):personas-papi-config" doc:id="04ba4868-e67c-454b-bbf4-b489ec5ff363" >
+		<set-variable value="#[attributes.uriParams.id]" doc:name="PersonId" doc:id="6dd5770a-aa9f-4c0c-97ee-5314fb10a06d" variableName="id" />
+		<http:request method="GET" doc:name="Request-Papi-PersonsById" doc:id="5615bedf-1800-4fdd-a6ee-41378da66a18" config-ref="HTTP_Request_configuration_Sapi" path="/api/persons/{id}">
+			<http:uri-params ><![CDATA[#[output application/java
+---
+{
+	"id" : vars.id
+}]]]></http:uri-params>
+		</http:request>
+		<logger level="INFO" doc:name="Logger" doc:id="ccf54129-8d5f-4803-ad4f-3f4d24fcf0e8" message="#[payload]"/>
+		<ee:transform doc:name="ChangeOnePersonDateFormate" doc:id="476aeaa9-9fd5-4d61-85a4-e677396311aa">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "first_name": payload.first_name,
+  "last_name": payload.last_name,
+  "date_of_birth":  payload.date_of_birth as LocalDateTime{format: "yyyy-MM-dd'T'HH:mm:ss"} as String{format: "yyyy/MM/dd"} ,
+  "gender": payload.gender
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="post:\persons:application\json:personas-papi-config" doc:id="d460044a-59ec-4378-9047-3d78393bc7cd" >
+		<http:request method="POST" doc:name="Request-Papi-Post" doc:id="c8b90ab6-fb12-48e5-b4d2-7f55727d2275" config-ref="HTTP_Request_configuration_Sapi" path="/api/persons">
+		</http:request>
+		<ee:transform doc:name='TDateFromFormat: "uuuu/MM/dd"' doc:id="9c5591a6-bb48-4693-b052-9d6c821c0638">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  "first_name": payload.first_name,
+  "last_name": payload.last_name,
+  "date_of_birth":  payload.date_of_birth as Date { format: "uuuu/MM/dd" } as String { format: "yyyy/MM/dd" } default null ,
+  "gender": payload.gender
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
